@@ -1,3 +1,9 @@
+int letter = 0, index = 7;
+String input = "G6_PRACTICA1_SECCION_A" ;
+
+//vector de bytes
+byte M[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+byte temp[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
 //definimos las letras en formato hexadecimal
  byte G[] = { 0x7C, 0x82, 0x80, 0x8E, 0x82, 0x82, 0x7C, 0x00 };
@@ -15,6 +21,7 @@
  byte Z[] = { 0x10, 0x70, 0x10, 0x10, 0x10, 0x10, 0xFE, 0x00 }; //Number one
  byte L[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
+
 bool GetBit( byte N, int pos)
    {                 // pos = 7 6 5 4 3 2 1 0
        int b = N >> pos ;         // Shift bits
@@ -30,20 +37,40 @@ void Clear()
           digitalWrite(k, LOW);    // Todas las columna cortadas
    }
 
-void SetChar(char p)
+void make_word(int dir)
+{
+  byte row;
+  //there is a letter
+  if(index >= 0) row = Selecciona(input.charAt(letter),index);
+  else row = 0;
+  
+  for(int i = 7; i > 0; i--)
+  {
+    if(dir == 0) M[i] = M[i - 1];
+    else M[i-1] = M[i];
+  }
+  if(dir == 0) M[0] = row;
+  else M[7] = row;
+  
+  if(index <= -3)
+  {
+    index = 7;
+    if(letter < input.length()) letter++;
+    else letter = 0;
+  }
+  else index--;
+}
+
+void SetChar()
    {
- 
-    //ciclo que nos desplaza la letra hacia abajo
-    for(int desp = 8; desp > 0; desp--)
-    {
       for(int pintar = 0; pintar < 300; pintar++){
        Clear();
        for (int fil = 22; fil <=36 ; fil+=2)
           {
              digitalWrite( fil , LOW) ; // Activamos la fila para el barrido
          
-             int index = ((fil -22)/2) + (desp - 8); // desp - 8 nos desplaza la letra hacia abajo
-             byte F = Selecciona( p, index);
+             int row = ((fil -22)/2); 
+             byte F = M[row];
              
              for (int col =38; col <= 52 ; col+=2)
                 {
@@ -58,7 +85,6 @@ void SetChar(char p)
              //limpiamos la fila
              digitalWrite( fil , HIGH) ;   // Apagamos fila antes de salir
           }
-    }
     }
    }
 
@@ -75,15 +101,15 @@ byte Selecciona( char c, byte fil)
        if ( c == 'O')          return( O[fil]);
        if ( c == 'N')          return( N[fil]);
        if ( c == 'A')          return( A[fil]);
-       if ( c == 'P')         return( P[fil]); 
+       if ( c == 'P')          return( P[fil]); 
        if ( c == 'R')          return( R[fil]);
        if ( c == 'T')          return( T[fil]);
        if ( c == '1')          return( Z[fil]);
        if ( c == '_')          return( L[fil]);
+       if ( c == 'M')          return( M[fil]);
     }
     else
       return 0;
-    
    }
 
    
@@ -97,13 +123,7 @@ void setup() {
 }
 
 void loop() {
-  String s = "G6_PRACTICA1_SECCION_A" ;
-       int l = s.length();          // Calcula la longitus de s
-       for ( int n = 0; n< l; n++ )
-          {
-              long t = millis();
-              char c = s[n];
-              while ( millis()< t+ 400)
-              SetChar(c);
-          }
+  make_word(0);
+  SetChar();
+
 }
