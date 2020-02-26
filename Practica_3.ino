@@ -5,7 +5,8 @@
   const int echoPin = 19;
 
 int color = -1;
-  
+int state = 0;
+
 #define COLOR_SENSOR_0 14
 #define COLOR_SENSOR_1 15
 #define COLOR_SENSOR_2 16
@@ -39,9 +40,9 @@ void read_line()
 void save_color(long red, long green, long blue)
 {
   Serial.println("RGB is: ");
-  Serial.println(red):
-  Serial.println(green):
-  Serial.println(blue):
+  Serial.println(red);
+  Serial.println(green);
+  Serial.println(blue);
   if(red < 60)
   {
     //leer negro
@@ -120,6 +121,21 @@ void turn_left()
   }
 }
 
+void speak_bt()
+{
+   if(Serial.available() > 0){ // Checks whether data is comming from the serial port
+      state = Serial.read(); // Reads the data from the serial port
+   }
+   if (state == '0') {
+    Serial.println("LED: OFF"); // Send back, to the phone, the String "LED: ON"
+    state = 0;
+   }
+   else if (state == '1') {
+    Serial.println("LED: ON");;
+    state = 0;
+  }
+}
+
 void setup() {
   // put your setup code here, to run once:
   
@@ -131,14 +147,15 @@ void setup() {
   
   pinMode(trigPin,OUTPUT);
   pinMode(echoPin,INPUT);
-  Serial.begin(9600);
+  Serial.begin(38400); // Default communication rate of the Bluetooth module
 }
 
 void loop() {
+  speak_bt();
+
   // put your main code here, to run repeatedly:
-  read_line();
-  Serial.println("Ultimo color");
-  Serial.println(color);
-  color = -1;
-  delay(1000);
+  //read_line();
+  //Serial.println("Ultimo color");
+  //Serial.println(color);
+  
 }
