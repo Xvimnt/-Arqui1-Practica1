@@ -17,7 +17,7 @@ String path_name = "";
 //booleano que me dice si ya hay un nombre complete
 bool name_complete = false;
 //booleano que me dice si seguir en modo control remoto
-bool is_rc = true;
+int function = 0;
 
 void save_string(String str, int index)
 {
@@ -56,7 +56,7 @@ void save_character(char character)
     set_position = true;
     break;
     case 'C':
-    is_rc = true;
+    function = 0;
     break;
     case ';':
       if(mem_position != -1)
@@ -67,7 +67,7 @@ void save_character(char character)
         result += ";";
         save_string(result, mem_position);
         //para pasar al modo rc de nuevo
-        is_rc = true;
+         function = 0;
       }
       //limpiando el movimiento para uno nuevo
       current_mov = "";
@@ -205,11 +205,55 @@ void rc_mode()
    if(BT.available() > 0)
    { // Checks whether data is comming from the serial port
     char character = BT.read();
-    if(character == 'C')
+    switch(character)
     {
-      is_rc = false;
-    }
-    exec_mov(character,1);
+      case 'C':
+      //pasarce al modo guardar path
+      function = 1;
+      break;
+      case 'B':
+      //barrer
+      break;
+      case 'X':
+      //limpiar la memoria
+      for(int i = 0; i < 62; i++)
+      {
+        EEPROM.put(i,0);
+      }
+      break;
+      case 'Y':
+      //recorrer path en memoria
+      function = 2;
+      break;
+      default:
+      exec_mov(character,1);
+      break;
+     }
+   }
+}
+
+
+
+void receive_path_no()
+{
+  if(BT.available() > 0)
+   { // Checks whether data is comming from the serial port
+    char character = BT.read();
+    switch(character)
+    {
+      case '1':
+      make_path(1);
+      break;
+      case '2':
+      make_path(2);
+      break;
+      case '3':
+      make_path(3);
+      break;
+      case 'Y':
+      function = 0;
+      break;
+     }
    }
 }
 
@@ -219,8 +263,16 @@ void setup() {
 }
 
 void loop() {
-  //speak_bt();
-  if(is_rc) rc_mode();
-  else path_mode();
-  
+  switch(function)
+  {
+    case 0:
+    rc_mode();
+    break;
+    case 1:
+    path_mode();
+    break;
+    case 2:
+    receive_path_no();
+    break;
+  }
 }
