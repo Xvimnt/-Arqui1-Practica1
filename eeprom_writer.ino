@@ -16,6 +16,8 @@ int name_count = 0;
 String path_name = "";
 //booleano que me dice si ya hay un nombre complete
 bool name_complete = false;
+//booleano que me dice si seguir en modo control remoto
+bool is_rc = true;
 
 void save_string(String str, int index)
 {
@@ -53,23 +55,25 @@ void save_character(char character)
     case 'P':
     set_position = true;
     break;
+    case 'C':
+    is_rc = true;
+    break;
     case ';':
-    if(mem_position != -1)
-    {
-      String result = "";
-      result += path_name;
-      result += current_mov;
-      result += ";";
-      save_string(result, mem_position);
-      
-      //solo para ver si se guardaron bien los atributos
-      read_slot(1);
-    }
-    //limpiando el movimiento para uno nuevo
-    current_mov = "";
-    //limpiando el nombre para uno nuevo
-    name_complete = false;
-    path_name = "";
+      if(mem_position != -1)
+      {
+        String result = "";
+        result += path_name;
+        result += current_mov;
+        result += ";";
+        save_string(result, mem_position);
+        //para pasar al modo rc de nuevo
+        is_rc = true;
+      }
+      //limpiando el movimiento para uno nuevo
+      current_mov = "";
+      //limpiando el nombre para uno nuevo
+      name_complete = false;
+      path_name = "";
     break;
     default:
     if(set_position)
@@ -102,6 +106,7 @@ void save_character(char character)
 
 void read_name(int choice)
 {
+  //Envia los 5 slots del nombre al celular y luego el numero de la ruta 
   String result = "";
   char pointer;
   for(int i = 0; i < 5; i++)
@@ -118,13 +123,8 @@ void read_name(int choice)
       EEPROM.get(i + 60,pointer);
       break;
     }
-    if(pointer != '0')
-    {
-      result += pointer;
-    }  
+      BT.write(pointer);
   }
-  Serial.println("---Recorrido---");
-  Serial.print(result);
 }
 
 void make_path(int choice)
@@ -191,12 +191,25 @@ void read_slot(int choice)
   make_path(choice);
 }
 
-void speak_bt()
+void path_mode()
 {
    if(BT.available() > 0)
    { // Checks whether data is comming from the serial port
     char character = BT.read();
     save_character(character);
+   }
+}
+
+void rc_mode()
+{ 
+   if(BT.available() > 0)
+   { // Checks whether data is comming from the serial port
+    char character = BT.read();
+    if(character == 'C')
+    {
+      is_rc = false;
+    }
+    exec_mov(character,1);
    }
 }
 
@@ -206,5 +219,8 @@ void setup() {
 }
 
 void loop() {
-  speak_bt();
+  //speak_bt();
+  if(is_rc) rc_mode();
+  else path_mode();
+  
 }
