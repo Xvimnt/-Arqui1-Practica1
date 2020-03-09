@@ -1,7 +1,4 @@
 #include <LedControl.h>
-#include <iostream>
-#include <string>
-using namespace std;
 // Pin Definitions
 #define LEDMATRIX_PIN_DIN 49
 #define LEDMATRIX_PIN_CS  51
@@ -53,32 +50,37 @@ void move(int direction)
 void show()
 {
     //muestra la tabla en la matriz de led
-    byte to_show[8];
+    int to_show[8];
     for(int i = 0; i < 8; i++)
     {
-        String byte_str = "", byte_str_cnt = "";
+        double byte_str = 0, byte_str_cnt = 0;
         for(int j = 0; j < 8; j++)
         {
             if(table[i][j] == 2)
             {
-                byte_str += 1;
+              
+                byte_str +=  pow(2,(7 - j));
                 byte_str_cnt += 0;
             }
             else
             {
-                byte_str += table[i][j];
-                byte_str_cnt += table[i][j];
+                byte_str += table[i][j] * pow(2,(7 - j));
+                byte_str_cnt += table[i][j] * pow(2,(7 - j));
             }
         }
         //mostrando la primer matriz
-        int decimal = stoi(byte_str, 0, 2);
-        lc.setRow(0, i, (Byte*)&decimal);
+        Serial.println("En la fila ");
+        Serial.println(i);
+        Serial.println("valor decimal");
+        String pin = String((int)(byte_str + 0.1), HEX);
+        byte l = 127;
+        Serial.println(l);
+        lc.setRow(0, i,l);
         //guardando el contraste
-        decimal = stoi(byte_str_cnt, 0, 2);
-        to_show[i] = (Byte*) &decimal;  
+        to_show[i] = byte_str_cnt;  
     }
     //mostrando el contraste para parpadear
-    delay(500);
+    delay(1000);
     for(int k = 0; k < 8; k++)
     {
         lc.setRow(0, k, to_show[k]);
@@ -87,14 +89,22 @@ void show()
 
 void setup() 
 {
+  Serial.println("al setup");
   lc.shutdown(0, false);     // enciende la matriz
   lc.setIntensity(0, 1);    // establece brillo
   lc.clearDisplay(0);     // blanquea matriz
-  table[7][7] = 2;  //se inicia sobre el tobogan
+  table[7][0] = 2;  //se inicia sobre el tobogan
+
   Serial.begin(9600);
 }
 
+void prueba()
+{
+  byte l = 127;
+  Serial.println(l);
+  lc.setRow(0, 7,l);
+}
 void loop()
 {
-    show();
+  show();
 }
