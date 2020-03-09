@@ -15,6 +15,17 @@ LedControl lc = LedControl(LEDMATRIX_PIN_DIN, LEDMATRIX_PIN_CLK, LEDMATRIX_PIN_C
 //Tabla de movimientos se inicia por defecto en 7,7
 int table[8][8];
 
+void restart()
+{
+    for(int i = 0; i < 8; i++)
+    {
+        for(int j = 0; j < 8; j++)
+        {
+          table[i][j] == 0;
+        }
+    }   
+    table[7][0] = 2;  //se inicia sobre el tobogan
+}
 
 void move(int direction)
 {
@@ -30,7 +41,7 @@ void move(int direction)
                 {
                     // 1 = DERECHA , 2 = IZQUIERDA, 3 = ARRIBA, 4 = ABAJO
                     case 1:
-                    if((j + 1) > 8) return;
+                    if((j + 1) > 7) return;
                     table[i][j + 1] == 2;
                     break;
                     case 2:
@@ -42,7 +53,7 @@ void move(int direction)
                     table[i - 1][j] == 2;
                     break;
                     case 4:
-                    if((i + 1) > 8) return;
+                    if((i + 1) > 7) return;
                     table[i + 1][j] == 2;
                     break;
                 }
@@ -97,7 +108,6 @@ void show()
 
 void setup() 
 {
-  Serial.println("al setup");
   lc.shutdown(0, false);     // enciende la matriz
   lc.setIntensity(0, 1);    // establece brillo
   lc.clearDisplay(0);     // blanquea matriz
@@ -108,4 +118,5 @@ void setup()
 void loop()
 {
   btn_pressed();
+  show();
 }
