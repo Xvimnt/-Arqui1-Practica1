@@ -1,6 +1,10 @@
 #include <EEPROM.h>
 #include <SoftwareSerial.h>
 #include <LedControl.h>
+#include <AFMotor.h>
+
+AF_DCMotor MotorX(1);
+AF_DCMotor MotorY(2);
 // Pin Definitions
   /*
   * Pines de los sensores de altura
@@ -11,22 +15,25 @@
   const int second_echo = 21;
   const int third_trig = 23;
   const int third_echo = 25;
+  /*
+   * Pines para los buzzer
+   */
+   const int star_wars = 17;
   //pines de la matriz
 #define LEDMATRIX_PIN_DIN 49
 #define LEDMATRIX_PIN_CS  51
 #define LEDMATRIX_PIN_CLK 53
-SoftwareSerial BT1(10, 11); // RX | TX
 //Matriz con controlador
 LedControl lc = LedControl(LEDMATRIX_PIN_DIN, LEDMATRIX_PIN_CLK, LEDMATRIX_PIN_CS, 1);
+//imagen triste
+const byte sad[8] = {0x00,0x24,0x24,0x24,0x00,0x3c,0x42,0x00};
 //Tabla de movimientos se inicia por defecto en 7,7
 int table[8][8];
 //juego completo
-bool jugando=false, jugarMecanicamente=true;
+bool jugando=false, jugarMecanicamente=true, fracaso = false;
 //Joystick
-int JoyStick_X = 0; //x
-int JoyStick_Y = 1; //y
+int JoyStick_X = 8, JoyStick_Y = 9 , X_I = 498 , Y_I = 519;
 //ultima moeda leida
-int ubicacionMoneda=0;
 char charIn;
 long randNumber;
 //Los datos de las monedas enviados a la app estaran divididos por el caracter / 
@@ -35,18 +42,26 @@ void juegoMecanico(int choice)
 {
   //Variable X y Y del joystick
   //Choice lleva el movimiento a la matriz
-  int x=analogRead(JoyStick_X), y = analogRead(JoyStick_Y);
+  int x=analogRead(JoyStick_X) - X_I, y = analogRead(JoyStick_Y) - Y_I;
+  Serial.print(x); Serial.print(",");
+  Serial.println(y);
+  bool x_neutral = ( (x > -300) && ( x < 300)); 
+  bool y_neutral = ( (y > -300) && ( y < 300)); 
   //Guardar el movimiento
-    if(x < 353 && y > 680) choice = 1;
-    else if(x > 680 && y < 355) choice = 3;
-    else if(x < 80 && y < 355) choice = 4;
-    else if(x < 353 && y < 80) choice = 2;
+    if( x_neutral && y < -20) choice = 1;
+    else if(x > 20 && y_neutral) choice = 3;
+    else if(x_neutral && y > 20) choice = 2;
+    else if(x < -20 && y_neutral) choice = 4;
    
     //Si se ejecuta un movimiento mandarlo
     if(choice != 0)
     {
       //Si regresa la posicion de la palanca mover el juego
-      if(x > 338 && y > 352) Move(choice);
+      if(x == 0 && y == 0)
+      {
+        Move(choice);
+        delay(50);
+      }
       else juegoMecanico(choice);
     }
 }
@@ -74,92 +89,70 @@ void juegoApp(char instruccion){
     break;
   }
 }
-void iniciarJuego(){
+void iniciarJuego()
+{
   while(jugando)
   {
-    show();
-    juegoMecanico(0);
+    int in = Serial3.read();
+    if(in==-1) continue;
+    char x;
+    x = in;
+    if(x=='N'){
+      jugarMecanicamente=false;
+    }else if(x=='M'){
+      jugarMecanicamente=true;      
+    }
+    if(jugarMecanicamente){
+      show();
+      juegoMecanico(0);
+    }else{
+      juegoApp(x);
+    }
   }
-//  while(jugando){
-//    int in = BT1.read();
-//    char x;
-//    if(in==-1){
-//      continue;
-//    }
-//    x = in;
-//    if(x=='N'){
-//      jugarMecanicamente=false;
-//    }else if(x=='M'){
-//      jugarMecanicamente=true;      
-//    }
-//    if(juegoMecanico){
-//      juegoMecanico(x);
-//    }else{
-//      juegoApp(x);
-//    }
-//  }
 }
 
-
-bool verificarIngreso(){
+void verificarIngreso(){
   //espacios de la EEPROM
   //0 para el total 0/25/50/1
   //1 para la cantidad de monedas de 25
   //2 para la cantidad de monedas de 50
   //3 para la cantidad de monedas de 100
   //4 ultima moneda ingresada
-  int conteo=0;
- 
-  byte val=0;
-  byte val2=0;
-   
-  EEPROM.get(ubicacionMoneda,val);
-  Serial.print("ubicacion moneda-> ");
-  Serial.println(ubicacionMoneda);
-
-   int x=0;    
-  if(ubicacionMoneda!=3){
-    x=ubicacionMoneda*25;
-  }else{
-    x=100;    
-  }
-  if(ubicacionMoneda==1){
-    ubicacionMoneda=5;
-  }
-  EEPROM.get(ubicacionMoneda,val);
-  byte z = val+B1;
-  EEPROM.put(ubicacionMoneda,z);
-  EEPROM.get(ubicacionMoneda,val);
-
-
-  //EEPROM.get(0,val2);
-
-  EEPROM.get(0,val2);
-  EEPROM.put(0,val2+(byte)x);
-  EEPROM.get(0,val2);
-
-  byte valx0=0;
-  byte valx1=0;
-  byte valx2=0;
-  byte valx3=0;
-  byte valx4=0;
-  EEPROM.get(0,valx0);
-  EEPROM.get(5,valx1);
-  EEPROM.get(2,valx2);
-  EEPROM.get(3,valx3);
-  EEPROM.get(4,valx4);
-  Serial.println(String(valx0));
-  Serial.println(String(valx1));
-  Serial.println(String(valx2));
-  Serial.println(String(valx3));
-  Serial.println(String(valx4));
-  if(valx0>=100){
+  //leer la ultima moneda ingresada
+  byte coin_type;
+  byte C25,C50;
+  EEPROM.get(4,coin_type);
+  EEPROM.get(1,C25);
+  EEPROM.get(2,C50);
+  switch(coin_type)
+  {
+    case 1:
+    //Moneda de 50
+    C50 +=(byte) 2;
+    EEPROM.put(2,C50);
+    EEPROM.put(4,0);
+    break;
+    case 3:
+    //Moneda de 25
+    C25 += (byte) 1;
+    EEPROM.put(1,C25);
+    EEPROM.put(4,0);
+    break;
+    case 2:
+    //Moneda de 100
+    EEPROM.put(3,1);
+    EEPROM.put(4,0);
+    digitalWrite(star_wars,HIGH);
     jugando = true;
-    return true;
-  }else{
-    jugando = false;
-    return false;
+    return;
   }
+  //si la suma nos da un quetzal
+  if(C25 + C50 >= 4)
+  {
+    digitalWrite(star_wars,HIGH);
+    jugando = true;
+  }
+  
 }
 
 char monedaIngresada(){
@@ -204,7 +197,7 @@ void enviarConteoBT(){
   enviar+="/"+String((B1100100-val0));
   enviar+="  $";
   Serial.println(enviar);
-  BT1.println(enviar);
+  Serial3.println(enviar);
 }
 
 /*
@@ -232,6 +225,8 @@ void Move(int Direction)
             //se encuentra la posicion del puntero
             if(table[i][j] == 2)
             {
+                Serial.println("Se ejecuta movimiento");
+                Serial.println(Direction);
                 //se mueve el puntero
                 switch(Direction)
                 {
@@ -239,18 +234,22 @@ void Move(int Direction)
                     case 1:
                     if((j + 1) > 7) return;
                     table[i][j + 1] = 2;
+                    mover_eje(11);
                     break;
                     case 2:
                     if((j - 1) < 0) return;
                     table[i][j - 1] = 2;
+                    mover_eje(12);
                     break;
                     case 3:
                     if((i - 1) < 0) return;
                     table[i - 1][j] = 2;
+                    mover_eje(21);
                     break;
                     case 4:
                     if((i + 1) > 7) return;
                     table[i + 1][j] = 2;
+                    mover_eje(22);
                     break;
                 }
                 table[i][j] = 1;
@@ -282,8 +281,7 @@ void show()
             }
         }
         //mostrando la primer matriz
-        int pin = (int)(byte_str + 0.1);
-        lc.setRow(0, i,pin);
+        lc.setRow(0, i,(int)(byte_str + 0.1));
         //guardando el contraste
         to_show[i] = (int)(byte_str_cnt + 0.1);  
     }
@@ -294,6 +292,14 @@ void show()
         lc.setRow(0, k, to_show[k]);
     }
     delay(50);
+}
+
+void show_sad_face()
+{
+  for(int i = 0; i < 8; i++)
+  {
+    lc.setRow(0,i,sad[i]);
+  }
 }
 
 /*
@@ -311,7 +317,7 @@ int get_distance(int choice)
             digitalWrite(first_trig, HIGH);
             delayMicroseconds(10);
             digitalWrite(first_trig, LOW);
-            duration = pulseIn(first_echo,HIGH);
+            duration = pulseIn(first_echo,HIGH) + 44;
         break;
         case 2:
             digitalWrite(second_trig, LOW);
@@ -319,7 +325,7 @@ int get_distance(int choice)
             digitalWrite(second_trig, HIGH);
             delayMicroseconds(10);
             digitalWrite(second_trig, LOW);
-            duration = pulseIn(second_echo,HIGH) + 37;
+            duration = pulseIn(second_echo,HIGH);
         break;
         case 3:
             digitalWrite(third_trig, LOW);
@@ -327,11 +333,11 @@ int get_distance(int choice)
             digitalWrite(third_trig, HIGH);
             delayMicroseconds(10);
             digitalWrite(third_trig, LOW);
-            duration = pulseIn(third_echo,HIGH) + 95;
+            duration = pulseIn(third_echo,HIGH) + 185;
         break;
     }
-  //Serial.println("----Duracion---");
-  //Serial.println(duration);
+    Serial.println("----duration--------");
+    Serial.println(duration);
   return duration; 
 }
 
@@ -339,16 +345,50 @@ void read_coin()
 {
     for(int i = 1; i < 4; i++)
     {
-        if(get_distance(i) > 250)
+        if(get_distance(i) > 400)
         {
-            EEPROM.put(4,((char)i)*25);
-            Serial.println("detecta moneda en el sensor:");
-            Serial.println(i);
-            delay(2500);
+            EEPROM.put(4,(byte)i);
+            EEPROM.put(5,(byte)i);
+            delay(500);
         }
     }
 }
 
+/*
+ * Metodos para los motores
+ */
+
+
+//Moviemiento de los motores 
+//@direccion direccion del movimiento
+//11 = eje x adelante
+//12 = eje x atras
+//21 = eje y adelante
+//22 = eje y atras
+void mover_eje(int direccion){
+  switch(direccion){
+    case 11:
+      MotorX.run(FORWARD);
+      delay(235);
+      MotorX.run(RELEASE);
+    break;
+    case 12:
+      MotorX.run(BACKWARD);
+      delay(200);
+      MotorX.run(RELEASE);
+    break;
+    case 21:
+      MotorY.run(FORWARD);
+      delay(200);
+      MotorX.run(RELEASE);
+    break;
+    case 22:
+      MotorY.run(BACKWARD);
+      delay(200);
+      MotorX.run(RELEASE);
+    break;
+  }
+}
 /*
  * Metodos nativos
  */
@@ -372,11 +412,16 @@ void setup() {
   pinMode(second_echo,INPUT);
   pinMode(third_trig,OUTPUT);
   pinMode(third_echo,INPUT);
+  pinMode(star_wars,OUTPUT);
   // put your setup code here, to run once:
+  MotorX.setSpeed(250);
+  MotorY.setSpeed(150);
+  MotorX.run(RELEASE);
+  MotorY.run(RELEASE);
   Serial.begin(9600);
-  BT1.begin(9600);
+  Serial3.begin(9600);
   randomSeed(analogRead(0));
-
+  show_sad_face();
 }
 
 void loop() 
@@ -384,7 +429,7 @@ void loop()
   if(jugando)
   {    
       iniciarJuego();
-      charIn = BT1.read();
+      charIn = Serial3.read();
       if((int)charIn!=-1){
         Serial.println(charIn);
       }
@@ -396,10 +441,11 @@ void loop()
   }
   else
   {
-    Serial.println("###################");
+    Serial.println("************************");
     read_coin();
     verificarIngreso();
-    if(charIn=='$'){
+    if(charIn=='$')
+    {
       //ejecuta conteo
       Serial.println("Enviar info a la app");
       enviarConteoBT();
