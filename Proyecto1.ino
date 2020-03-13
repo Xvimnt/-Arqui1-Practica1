@@ -2,7 +2,22 @@
 #include <SoftwareSerial.h>
 #include <LedControl.h>
 #include <AFMotor.h>
+/*
+ * Programa para 
+ * Garra mecanica  
+ *  
+ */
+ #include <Servo.h>
 
+ /**************Variables del Sistema*****************/
+ Servo servo1;
+ Servo servoZ;
+ bool abierto = true; 
+ int pulseYellow = 26;
+ int pulseBlue = 28;
+ int pinSensor = 30;
+ int valor = 0;
+ 
 AF_DCMotor MotorX(1);
 AF_DCMotor MotorY(2);
 // Pin Definitions
@@ -30,7 +45,7 @@ const byte sad[8] = {0x00,0x24,0x24,0x24,0x00,0x3c,0x42,0x00};
 //Tabla de movimientos se inicia por defecto en 7,7
 int table[8][8];
 //juego completo
-bool jugando=false, jugarMecanicamente=true, fracaso = false;
+bool jugando=true, jugarMecanicamente=true, fracaso = false;
 //Joystick
 int JoyStick_X = 8, JoyStick_Y = 9 , X_I = 498 , Y_I = 519;
 //ultima moeda leida
@@ -71,15 +86,19 @@ void juegoApp(char instruccion){
   switch(instruccion){
     case 'U':
       Serial.println("Mover arriba");
+      Move(3);
     break;
     case 'D':
       Serial.println("Mover abajo");
+      Move(4);
     break;
     case 'L':
       Serial.println("Mover left");
+      Move(2);
     break;
     case 'R':
       Serial.println("Mover derecha");
+      Move(1);
     break;
     case 'O':
       Serial.println("Liberar");
@@ -89,12 +108,23 @@ void juegoApp(char instruccion){
     break;
   }
 }
+
+void receive_start_bt()
+{
+  while(true)
+  {
+    char receive = Serial3.read();
+    Serial.println("esperando R");
+    if(receive == '$') send_bt_count();
+    else if(receive == 'R') return;
+  }
+}
 void iniciarJuego()
 {
+  //receive_start_bt();
   while(jugando)
   {
     int in = Serial3.read();
-    if(in==-1) continue;
     char x;
     x = in;
     if(x=='N'){
@@ -102,10 +132,15 @@ void iniciarJuego()
     }else if(x=='M'){
       jugarMecanicamente=true;      
     }
-    if(jugarMecanicamente){
+    
+    if(jugarMecanicamente)
+    {
+      Serial.println("jugando mecanicamente");
       show();
       juegoMecanico(0);
-    }else{
+    }
+    else
+    {
       juegoApp(x);
     }
   }
@@ -117,7 +152,7 @@ void verificarIngreso(){
   //1 para la cantidad de monedas de 25
   //2 para la cantidad de monedas de 50
   //3 para la cantidad de monedas de 100
-  //4 ultima moneda ingresada
+  //5 ultima moneda ingresada
   //leer la ultima moneda ingresada
   byte coin_type;
   byte C25,C50;
@@ -155,21 +190,9 @@ void verificarIngreso(){
   
 }
 
-char monedaIngresada(){
-  randNumber = random(1,3);
-  char randomEnChar = (char)randNumber;
-  Serial.println(randNumber);
-  Serial.println(randomEnChar);
-  delay(50);
-  Serial.print("La moneda ingresada es de: ");
-  Serial.println(randNumber*25);
-  char totalEnNumero = randomEnChar*25;
-  
-  EEPROM.put(4,totalEnNumero);
-  return randomEnChar;
-}
 //enviar conteo por bluetooth
-void enviarConteoBT(){
+void send_bt_count()
+{
   String enviar = "";
   Serial.println(enviar);
   byte val0=0;
@@ -177,27 +200,45 @@ void enviarConteoBT(){
   byte val2=0;
   byte val3=0;
   byte val4=0;
-  EEPROM.get(0,val0);
-  EEPROM.get(5,val1);
+  EEPROM.get(1,val1);
   EEPROM.get(2,val2);
   EEPROM.get(3,val3);
-  EEPROM.get(4,val4);
+  EEPROM.get(7,val4);
   Serial.println(String(val1));
   Serial.println(String(val2));
   Serial.println(String(val3));
   Serial.println(String(val4));
-  enviar+=String(val4)+"/";
-  //el detalle de monedas
-  enviar+="Monedas de Q0.25: ";
+  byte total = val1 * 25 + val2 * 50 + val3 * 100;
+  enviar+="Ultima moneda: ";
+  switch(val4)
+  {
+    case B1:
+    enviar += "Q0.50";
+    break;
+    case B10:
+    enviar += "Q1.00";
+    break;
+    case B11:
+    enviar += "Q25.00";
+    break;
+    default:
+    enviar += "0";
+    break;
+  }
+  enviar+="\nMonedas de Q0.25: ";
   enviar+=String(val1);
   enviar+="\nMonedas de Q0.50: ";
-  enviar+=String(val2);
+  enviar+=String(val2 / 2);
   enviar+="\nMonedas de Q1.00: ";
   enviar+=String(val3);
-  enviar+="/"+String((B1100100-val0));
+  enviar+="\nFaltante=";
+  int falt = (B1100100-total);
+  if(falt < 0) enviar+= "0";
+  else enviar += falt;
   enviar+="  $";
   Serial.println(enviar);
   Serial3.println(enviar);
+  delay(1000);
 }
 
 /*
@@ -234,22 +275,22 @@ void Move(int Direction)
                     case 1:
                     if((j + 1) > 7) return;
                     table[i][j + 1] = 2;
-                    mover_eje(11);
+                    mover_eje(22);
                     break;
                     case 2:
                     if((j - 1) < 0) return;
                     table[i][j - 1] = 2;
-                    mover_eje(12);
+                    mover_eje(21);
                     break;
                     case 3:
                     if((i - 1) < 0) return;
                     table[i - 1][j] = 2;
-                    mover_eje(21);
+                    mover_eje(11);
                     break;
                     case 4:
                     if((i + 1) > 7) return;
                     table[i + 1][j] = 2;
-                    mover_eje(22);
+                    mover_eje(12);
                     break;
                 }
                 table[i][j] = 1;
@@ -317,7 +358,7 @@ int get_distance(int choice)
             digitalWrite(first_trig, HIGH);
             delayMicroseconds(10);
             digitalWrite(first_trig, LOW);
-            duration = pulseIn(first_echo,HIGH) + 44;
+            duration = pulseIn(first_echo,HIGH) + 65;
         break;
         case 2:
             digitalWrite(second_trig, LOW);
@@ -333,7 +374,7 @@ int get_distance(int choice)
             digitalWrite(third_trig, HIGH);
             delayMicroseconds(10);
             digitalWrite(third_trig, LOW);
-            duration = pulseIn(third_echo,HIGH) + 185;
+            duration = pulseIn(third_echo,HIGH) + 164;
         break;
     }
     Serial.println("----duration--------");
@@ -348,8 +389,8 @@ void read_coin()
         if(get_distance(i) > 400)
         {
             EEPROM.put(4,(byte)i);
-            EEPROM.put(5,(byte)i);
-            delay(500);
+            EEPROM.put(7,(byte)i);
+            delay(1000);
         }
     }
 }
@@ -379,16 +420,79 @@ void mover_eje(int direccion){
     break;
     case 21:
       MotorY.run(FORWARD);
-      delay(200);
-      MotorX.run(RELEASE);
+      delay(60);
+      MotorY.run(RELEASE);
     break;
     case 22:
       MotorY.run(BACKWARD);
-      delay(200);
-      MotorX.run(RELEASE);
+      delay(60);
+      MotorY.run(RELEASE);
     break;
   }
 }
+
+
+/***************Metodos de la garra*******************/
+
+/*Metodo para bajar el motor del eje Z*/
+void bajarejeZ(){
+  servoZ.write(30);
+  delay(2000);
+  servoZ.write(90);
+  }
+
+/*Metodo para subir el motor del eje Z*/
+void subirejeZ(){
+  servoZ.write(160);
+  delay(2000);
+  servoZ.write(90);
+  }
+
+/*Metodo cerrar garra*/
+void cerrar(){
+  int i;
+  for(i = 180; i > 90; i--){
+    servo1.write(i);
+    delay(25);
+    }
+  }
+
+
+/*Metodo abrir garra*/
+void abrir(){
+  int i;
+  for(i = 90; i < 180; i++){
+   servo1.write(i);
+   delay(25);
+   }
+  }
+
+/*Metodo para detectar obstaculo*/
+void detectar(){
+  valor = digitalRead(pinSensor);
+  if(valor == HIGH){
+    Serial.println("No se detecta obstaculo");
+    }else{
+      Serial.println("Obstaculo encontrado");
+      }
+   delay(1000);
+  }
+
+/*Metodo para cuando atrapo un premio y se detecta como obstaculo*/
+void obstaculo(){
+  detectar();
+  }
+
+void blue_btn()
+{
+  if(digitalRead(pulseBlue) == HIGH)
+  {
+    bajarejeZ();
+    abrir();
+    cerrar();
+  }
+}
+
 /*
  * Metodos nativos
  */
@@ -400,8 +504,8 @@ void setup() {
   lc.clearDisplay(0);     // blanquea matriz
   table[7][0] = 2;  //se inicia sobre el tobogan
   //inicializando eeprom
-  EEPROM.put(0,0);
-  EEPROM.put(5,0);
+  EEPROM.put(1,0);
+  EEPROM.put(7,0);
   EEPROM.put(2,0);
   EEPROM.put(3,0);
   EEPROM.put(4,0);
@@ -415,9 +519,21 @@ void setup() {
   pinMode(star_wars,OUTPUT);
   // put your setup code here, to run once:
   MotorX.setSpeed(250);
-  MotorY.setSpeed(150);
+  MotorY.setSpeed(200);
   MotorX.run(RELEASE);
   MotorY.run(RELEASE);
+  /*para el motor de 180*/
+  servo1.attach(5);
+  servoZ.attach(6);
+  servoZ.write(90); //Servo 360 detenido
+
+  //Para los botones
+  pinMode(pulseYellow, INPUT);
+  pinMode(pulseBlue, INPUT);
+
+  //para el sensor
+  pinMode(pinSensor, INPUT);
+  
   Serial.begin(9600);
   Serial3.begin(9600);
   randomSeed(analogRead(0));
@@ -426,29 +542,22 @@ void setup() {
 
 void loop() 
 {
+  
   if(jugando)
   {    
       iniciarJuego();
       charIn = Serial3.read();
-      if((int)charIn!=-1){
+      if((int)charIn!=-1)
+      {
         Serial.println(charIn);
       }
-    if(charIn=='$'){
-      //ejecuta conteo
-      Serial.println("Enviar info a la app");
-      enviarConteoBT();
-    }
+      if(Serial3.read() == '$') send_bt_count();
   }
   else
   {
-    Serial.println("************************");
+    Serial.println("##########################");
     read_coin();
     verificarIngreso();
-    if(charIn=='$')
-    {
-      //ejecuta conteo
-      Serial.println("Enviar info a la app");
-      enviarConteoBT();
-    }
+    if(Serial3.read() == '$') send_bt_count();
   }
 }
